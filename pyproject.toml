@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "setuptools-git-versioning"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "niftithings"
+authors = [
+  {name="Jeroen Bertels", email="jeroen.bertels@gmail.com"},
+]
+description = "A Python library for working with Nifti images."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+dependencies = [
+  "numpy",
+  "scipy",
+  "nibabel",
+  "arraythings"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/JeroenBertels/niftithings"
