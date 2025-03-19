@@ -174,4 +174,4 @@ def is_orthogonal_affine(affine, max_allowed_angles_in_degrees=(1, 1, 1)):
     """
 
     xy, xz, yz = get_angles_between_axes(affine)
-    return xy <= max_allowed_angles_in_degrees[0] and xz <= max_allowed_angles_in_degrees[1] and yz <= max_allowed_angles_in_degrees[2]
+    return np.abs(90 - xy) <= max_allowed_angles_in_degrees[0] and np.abs(90 - xz) <= max_allowed_angles_in_degrees[1] and np.abs(90 - yz) <= max_allowed_angles_in_degrees[2]
