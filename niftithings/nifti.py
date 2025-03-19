@@ -1,7 +1,26 @@
 import nibabel as nib
 import numpy as np
+import dicom2nifti as d2n
 from scipy.ndimage import zoom, gaussian_filter
 from arraythings import downsample_array
+
+
+def load(nii_path):
+    """Loads a NIfTI image file from the specified file path.
+
+    Parameters:
+    -----------
+    nii_path : str
+        Path to the NIfTI file.
+
+    Returns:
+    --------
+    nibabel.Nifti1Image
+        Loaded NIfTI image, containing the image data as a NumPy array and the associated affine matrix.
+    """
+
+    img = nib.load(nii_path)
+    return nib.Nifti1Image(np.asarray(img.dataobj), img.affine)
 
 
 def reorient_nifti(image, output_orientation="LPS"):
@@ -82,3 +101,77 @@ def resample_nifti(input_nii, output_zooms, order=3, prefilter=True, reference_n
     output_nii = nib.Nifti1Image(output_array, affine=output_affine)
     output_nii.header.set_zooms(output_zooms)  # important to set non-spatial zooms correctly
     return output_nii
+
+
+def orthogonalize_nifti(image, resample_padding=0, resample_spline_interpolation_order=0):
+    """Orthogonalizes the given NIfTI image using dicom2nifti's resampling methods, adjusting the padding and interpolation settings temporarily for this operation.
+
+    Parameters:
+    -----------
+    image : nibabel.Nifti1Image
+        The NIfTI image to be orthogonalized.
+    resample_padding : int, optional
+        Padding value used during resampling. Default is 0.
+    resample_spline_interpolation_order : int, optional
+        Spline interpolation order used during resampling. Default is 0.
+
+    Returns:
+    --------
+    list of nibabel.Nifti1Image
+        A list containing the orthogonalized NIfTI image.
+    """
+        
+    d2n.settings.set_resample_padding(resample_padding)
+    d2n.settings.set_resample_spline_interpolation_order(resample_spline_interpolation_order)
+    orthogonal_nii = d2n.resample.resample_nifti_images([image])
+    d2n.settings.set_resample_spline_interpolation_order(0)  # back to default
+    d2n.settings.set_resample_padding(0)  # back to default
+    return orthogonal_nii
+
+
+def get_angles_between_axes(affine, in_degrees=True):
+    """Calculates the angles between the axes of an affine transformation matrix.
+
+    Parameters:
+    -----------
+    affine : np.ndarray
+        A 4x4 affine transformation matrix.
+    in_degrees : bool, optional
+        Flag to determine if the output angles should be in degrees (True) or radians (False). Default is True.
+
+    Returns:
+    --------
+    tuple
+        A tuple containing the angles between the x-y, x-z, and y-z axes.
+    """
+        
+    assert affine.shape == (4, 4)
+    xy = np.arccos(np.sum(affine[:, 0] * affine[:, 1]) / (np.linalg.norm(affine[:, 0]) * np.linalg.norm(affine[:, 1])))
+    xz = np.arccos(np.sum(affine[:, 0] * affine[:, 2]) / (np.linalg.norm(affine[:, 0]) * np.linalg.norm(affine[:, 2])))
+    yz = np.arccos(np.sum(affine[:, 1] * affine[:, 2]) / (np.linalg.norm(affine[:, 1]) * np.linalg.norm(affine[:, 2])))
+    if in_degrees:
+        xy = xy * 180 / np.pi
+        xz = xz * 180 / np.pi
+        yz = yz * 180 / np.pi
+    
+    return xy, xz, yz
+    
+
+def is_orthogonal_affine(affine, max_allowed_angles_in_degrees=(1, 1, 1)):
+    """Checks if the affine transformation matrix is nearly orthogonal by comparing the angles between its axes against specified maximum allowed angles.
+
+    Parameters:
+    -----------
+    affine : np.ndarray
+        A 4x4 affine transformation matrix.
+    max_allowed_angles_in_degrees : tuple, optional
+        Maximum allowed deviation angles in degrees for the matrix to be considered orthogonal. Default is (1, 1, 1).
+
+    Returns:
+    --------
+    bool
+        True if the matrix is nearly orthogonal within the specified angle tolerances, otherwise False.
+    """
+
+    xy, xz, yz = get_angles_between_axes(affine)
+    return xy <= max_allowed_angles_in_degrees[0] and xz <= max_allowed_angles_in_degrees[1] and yz <= max_allowed_angles_in_degrees[2]
